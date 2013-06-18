@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>splendid textchange demo</title>
+
+<style>
+textarea {
+    width: 400px;
+    height: 200px;
+}
+</style>
+
+</head>
+<body>
+
+Input: <input type="text" id="input"><br>
+<textarea id="log" readonly></textarea>
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
+<script src="jquery.splendid.textchange.js"></script>
+<script>
+$("#input").on("textchange", function() {
+    var value = this.value;
+    $("#log").val(function(i, oldLog) {
+        return oldLog + "textchange, value: " + value + "\n";
+    });
+});
+</script>
+
+</body>
+</html>

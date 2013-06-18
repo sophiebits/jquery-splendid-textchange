@@ -18,8 +18,9 @@ var hasInputCapabilities = function(elem) {
     // TODO: <textarea> should be supported too but IE seems to reset the
     // selection when changing textarea contents during a selectionchange
     // event so it's not listed here for now.
-    return elem.nodeName === "INPUT" &&
-        (elem.type === "text" || elem.type === "password");
+    return (elem.nodeName === "INPUT" &&
+            (elem.type === "text" || elem.type === "password")) ||
+        elem.nodeName === "TEXTAREA";
 };
 
 var activeElement = null;
@@ -90,12 +91,8 @@ if (isInputSupported) {
         .on("input", function(e) {
             // In modern browsers (i.e., not IE 8 or 9), the input event is
             // exactly what we want so fall through here and trigger the
-            // event...
-            if (e.target.nodeName !== "TEXTAREA") {
-                // ...unless it's a textarea, in which case we don't fire an
-                // event (so that we have consistency with our old-IE shim).
-                $(e.target).trigger("textchange");
-            }
+            // event
+            $(e.target).trigger("textchange");
         });
 } else {
     $(document)

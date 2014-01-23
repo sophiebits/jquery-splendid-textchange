@@ -8,7 +8,7 @@
 (function($) {
 
 var testNode = document.createElement("input");
-var isInputSupported = "oninput" in testNode && 
+var isInputSupported = "oninput" in testNode &&
     (!("documentMode" in document) || document.documentMode > 9);
 
 var hasInputCapabilities = function(elem) {
@@ -49,7 +49,7 @@ var startWatching = function(target) {
     activeElement = target;
     activeElementValue = target.value;
     activeElementValueProp = Object.getOwnPropertyDescriptor(
-            target.constructor.prototype, "value");
+        target.constructor.prototype, "value");
 
     Object.defineProperty(activeElement, "value", newValueProp);
     activeElement.attachEvent("onpropertychange", handlePropertyChange);
@@ -60,15 +60,15 @@ var startWatching = function(target) {
  * element, if any exists.
  */
 var stopWatching = function() {
-  if (!activeElement) return;
+    if (!activeElement) return;
 
-  // delete restores the original property definition
-  delete activeElement.value;
-  activeElement.detachEvent("onpropertychange", handlePropertyChange);
+    // delete restores the original property definition
+    delete activeElement.value;
+    activeElement.detachEvent("onpropertychange", handlePropertyChange);
 
-  activeElement = null;
-  activeElementValue = null;
-  activeElementValueProp = null;
+    activeElement = null;
+    activeElementValue = null;
+    activeElementValueProp = null;
 };
 
 /**

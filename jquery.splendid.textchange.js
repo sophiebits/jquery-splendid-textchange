@@ -11,20 +11,19 @@
 (function($) {
 "use strict";
 
-var testNode = document.createElement("input");
-var isInputSupported = (testNode.oninput !== undefined &&
-    ((document.documentMode || 100) > 9));
+    // Determine if this is a modern browser (i.e. not IE 9 or older),
+    // in which case the "input" event is exactly what we want so simply
+    // mirror it as "textchange" event
+    var testNode = document.createElement("input");
+    var isInputSupported = (testNode.oninput !== undefined &&
+        ((document.documentMode || 100) > 9));
+    if (isInputSupported) {
+        $(document).on("input", function mirrorInputEvent(e) {
+            $(e.target).trigger("textchange");
+        });
 
-var hasInputCapabilities = function(elem) {
-    // The HTML5 spec lists many more types than `text` and `password` on
-    // which the input event is triggered but none of them exist in IE 8 or
-    // 9, so we don't check them here.
-    // TODO: <textarea> should be supported too but IE seems to reset the
-    // selection when changing textarea contents during a selectionchange
-    // event so it's not listed here for now.
-    return elem.nodeName === "INPUT" &&
-        (elem.type === "text" || elem.type === "password");
-};
+        return;
+    }
 
 var activeElement = null;
 var activeElementValue = null;
@@ -45,19 +44,32 @@ var newValueProp =  {
     }
 };
 
-/**
- * (For old IE.) Handles a propertychange event, sending a textChange event if
- * the value of the active element has changed.
- */
-var handlePropertyChange = function(nativeEvent) {
-    if (nativeEvent.propertyName !== "value") { return; }
+    /**
+     * (For old IE.) Return true if the specified element can generate
+     * change notifications (i.e. can be used by users to input values).
+     */
+    function hasInputCapabilities(elem) {
+        // The HTML5 spec lists many more types than `text` and `password` on
+        // which the input event is triggered but none of them exist in IE 8 or
+        // 9, so we don't check them here
+        return (
+            (elem.nodeName === "INPUT" &&
+                (elem.type === "text" || elem.type === "password")) ||
+            elem.nodeName === "TEXTAREA"
+        );
+    }
 
-    var value = nativeEvent.srcElement.value;
-    if (value === activeElementValue) { return; }
-    activeElementValue = value;
-
-    $(activeElement).trigger("textchange");
-};
+    /**
+     * (For old IE.) If value of activeElement is different from current value
+     * (activeElementValue), update the current value and trigger "textchange"
+     * event on activeElement.
+     */
+    function updateValueAndTriggerTextChange() {
+        if (activeElement && activeElement.value !== activeElementValue) {
+            activeElementValue = activeElement.value;
+            $(activeElement).trigger("textchange");
+        }
+    }
 
 /**
  * (For old IE.) Starts tracking propertychange events on the passed-in element
@@ -75,7 +87,7 @@ var startWatching = function(target) {
         activeElementValueOverride = true;
     }
 
-    activeElement.attachEvent("onpropertychange", handlePropertyChange);
+    activeElement.attachEvent("onpropertychange", updateValueAndTriggerTextChange);
 };
 
 /**
@@ -90,26 +102,13 @@ var stopWatching = function() {
         delete activeElement.value;
         activeElementValueOverride = false;
     }
-    activeElement.detachEvent("onpropertychange", handlePropertyChange);
+    activeElement.detachEvent("onpropertychange", updateValueAndTriggerTextChange);
 
     activeElement = null;
     activeElementValue = null;
     activeElementValueProp = null;
 };
 
-if (isInputSupported) {
-    $(document)
-        .on("input", function(e) {
-            // In modern browsers (i.e., not IE 8 or 9), the input event is
-            // exactly what we want so fall through here and trigger the
-            // event...
-            if (e.target.nodeName !== "TEXTAREA") {
-                // ...unless it's a textarea, in which case we don't fire an
-                // event (so that we have consistency with our old-IE shim).
-                $(e.target).trigger("textchange");
-            }
-        });
-} else {
     $(document)
         .on("focusin", function(e) {
             // In IE 8, we can capture almost all .value changes by adding a
@@ -133,7 +132,7 @@ if (isInputSupported) {
 
         .on("focusout", stopWatching)
 
-        .on("selectionchange keyup keydown", function() {
+        .on("selectionchange keyup keydown", updateValueAndTriggerTextChange);
             // On the selectionchange event, e.target is just document which
             // isn't helpful for us so just check activeElement instead.
             //
@@ -145,11 +144,5 @@ if (isInputSupported) {
             // (it'll be a little delayed: right before the second keystroke).
             // Other input methods (e.g., paste) seem to fire selectionchange
             // normally.
-            if (activeElement && activeElement.value !== activeElementValue) {
-                activeElementValue = activeElement.value;
-                $(activeElement).trigger("textchange");
-            }
-        });
-}
 
 }(jQuery));

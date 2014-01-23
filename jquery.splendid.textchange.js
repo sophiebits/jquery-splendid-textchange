@@ -6,10 +6,10 @@
  */
 
 /*global jQuery: false */
-/*jslint browser: true, white: true, vars: true */
+/*jslint browser: true, vars: true */
 
-(function($) {
-"use strict";
+(function initSplendidTextChange($) {
+    "use strict";
 
     // Determine if this is a modern browser (i.e. not IE 9 or older),
     // in which case the "input" event is exactly what we want so simply
@@ -25,24 +25,27 @@
         return;
     }
 
-var activeElement = null;
-var activeElementValue = null;
-var activeElementValueProp = null;
-var activeElementValueOverride = false; // track whether "activeElement.value" property was overridden in "startWatching" so that it can be restored in "stopWatching"
 
-/**
- * (For old IE.) Replacement getter/setter for the `value` property that
- * gets set on the active element.
- */
-var newValueProp =  {
-    get: function() {
-        return activeElementValueProp.get.call(this);
-    },
-    set: function(val) {
-        activeElementValue = val;
-        activeElementValueProp.set.call(this, val);
-    }
-};
+    // ********* OLD IE (9 and older) *********
+
+    var activeElement = null;
+    var activeElementValue = null;
+    var activeElementValueProp = null;
+    var activeElementValueOverride = false; // track whether "activeElement.value" property was overridden in "startWatching" so that it can be restored in "stopWatching"
+
+    /**
+     * (For old IE.) Replacement getter/setter for the `value` property that
+     * gets set on the active element.
+     */
+    var newValueProp =  {
+        get: function () {
+            return activeElementValueProp.get.call(this);
+        },
+        set: function (val) {
+            activeElementValue = val;
+            activeElementValueProp.set.call(this, val);
+        }
+    };
 
     /**
      * (For old IE.) Return true if the specified element can generate
@@ -71,46 +74,45 @@ var newValueProp =  {
         }
     }
 
-/**
- * (For old IE.) Starts tracking propertychange events on the passed-in element
- * and override the value property so that we can distinguish user events from
- * value changes in JS.
- */
-var startWatching = function(target) {
-    activeElement = target;
-    activeElementValue = target.value;
+    /**
+     * (For old IE.) Starts tracking propertychange events on the passed-in element
+     * and override the value property so that we can distinguish user events from
+     * value changes in JS.
+     */
+    function startWatching(target) {
+        activeElement = target;
+        activeElementValue = target.value;
 
-    if (target.constructor && target.constructor.prototype) { // target.constructor is undefined in quirks mode
-        activeElementValueProp = Object.getOwnPropertyDescriptor(
-            target.constructor.prototype, "value");
-        Object.defineProperty(activeElement, "value", newValueProp);
-        activeElementValueOverride = true;
+        if (target.constructor && target.constructor.prototype) { // target.constructor is undefined in quirks mode
+            activeElementValueProp = Object.getOwnPropertyDescriptor(target.constructor.prototype, "value");
+            Object.defineProperty(activeElement, "value", newValueProp);
+            activeElementValueOverride = true;
+        }
+
+        activeElement.attachEvent("onpropertychange", updateValueAndTriggerTextChange);
     }
 
-    activeElement.attachEvent("onpropertychange", updateValueAndTriggerTextChange);
-};
+    /**
+     * (For old IE.) Removes the event listeners from the currently-tracked
+     * element, if any exists.
+     */
+    function stopWatching() {
+        if (!activeElement) { return; }
 
-/**
- * (For old IE.) Removes the event listeners from the currently-tracked
- * element, if any exists.
- */
-var stopWatching = function() {
-    if (!activeElement) { return; }
+        if (activeElementValueOverride) {
+            // delete restores the original property definition
+            delete activeElement.value;
+            activeElementValueOverride = false;
+        }
+        activeElement.detachEvent("onpropertychange", updateValueAndTriggerTextChange);
 
-    if (activeElementValueOverride) {
-        // delete restores the original property definition
-        delete activeElement.value;
-        activeElementValueOverride = false;
+        activeElement = null;
+        activeElementValue = null;
+        activeElementValueProp = null;
     }
-    activeElement.detachEvent("onpropertychange", updateValueAndTriggerTextChange);
-
-    activeElement = null;
-    activeElementValue = null;
-    activeElementValueProp = null;
-};
 
     $(document)
-        .on("focusin", function(e) {
+        .on("focusin", function (e) {
             // In IE 8, we can capture almost all .value changes by adding a
             // propertychange handler and looking for events with propertyName
             // equal to 'value'.

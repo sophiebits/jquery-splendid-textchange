@@ -5,7 +5,11 @@
  * (c) 2013 Ben Alpert, released under the MIT license
  */
 
+/*global jQuery: false */
+/*jslint browser: true, white: true, vars: true */
+
 (function($) {
+"use strict";
 
 var testNode = document.createElement("input");
 var isInputSupported = "oninput" in testNode &&
@@ -41,6 +45,20 @@ var newValueProp =  {
 };
 
 /**
+ * (For old IE.) Handles a propertychange event, sending a textChange event if
+ * the value of the active element has changed.
+ */
+var handlePropertyChange = function(nativeEvent) {
+    if (nativeEvent.propertyName !== "value") { return; }
+
+    var value = nativeEvent.srcElement.value;
+    if (value === activeElementValue) { return; }
+    activeElementValue = value;
+
+    $(activeElement).trigger("textchange");
+};
+
+/**
  * (For old IE.) Starts tracking propertychange events on the passed-in element
  * and override the value property so that we can distinguish user events from
  * value changes in JS.
@@ -60,7 +78,7 @@ var startWatching = function(target) {
  * element, if any exists.
  */
 var stopWatching = function() {
-    if (!activeElement) return;
+    if (!activeElement) { return; }
 
     // delete restores the original property definition
     delete activeElement.value;
@@ -69,20 +87,6 @@ var stopWatching = function() {
     activeElement = null;
     activeElementValue = null;
     activeElementValueProp = null;
-};
-
-/**
- * (For old IE.) Handles a propertychange event, sending a textChange event if
- * the value of the active element has changed.
- */
-var handlePropertyChange = function(nativeEvent) {
-    if (nativeEvent.propertyName !== "value") return;
-
-    var value = nativeEvent.srcElement.value;
-    if (value === activeElementValue) return;
-    activeElementValue = value;
-
-    $(activeElement).trigger("textchange");
 };
 
 if (isInputSupported) {
@@ -142,4 +146,4 @@ if (isInputSupported) {
         });
 }
 
-})(jQuery);
+}(jQuery));

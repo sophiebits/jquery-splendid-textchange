@@ -13,7 +13,7 @@
 
 var testNode = document.createElement("input");
 var isInputSupported = "oninput" in testNode &&
-    (!("documentMode" in document) || document.documentMode > 9);
+    ((document.documentMode || 100) > 9);
 
 var hasInputCapabilities = function(elem) {
     // The HTML5 spec lists many more types than `text` and `password` on

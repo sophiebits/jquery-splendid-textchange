@@ -1,5 +1,5 @@
 /**
- * jQuery "splendid textchange" plugin
+ * jQuery "splendid textchange" plugin, v1.2 alpha1
  * http://benalpert.com/2013/06/18/a-near-perfect-oninput-shim-for-ie-8-and-9.html
  *
  * (c) 2013 Ben Alpert, released under the MIT license

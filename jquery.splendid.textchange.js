@@ -68,7 +68,7 @@ var startWatching = function(target) {
     activeElement = target;
     activeElementValue = target.value;
 
-    if (target.constructor && target.constructor.prototype) { // target.constructor is null in quirks mode
+    if (target.constructor && target.constructor.prototype) { // target.constructor is undefined in quirks mode
         activeElementValueProp = Object.getOwnPropertyDescriptor(
             target.constructor.prototype, "value");
         Object.defineProperty(activeElement, "value", newValueProp);

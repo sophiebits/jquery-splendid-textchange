@@ -12,8 +12,8 @@
 "use strict";
 
 var testNode = document.createElement("input");
-var isInputSupported = "oninput" in testNode &&
-    ((document.documentMode || 100) > 9);
+var isInputSupported = (testNode.oninput !== undefined &&
+    ((document.documentMode || 100) > 9));
 
 var hasInputCapabilities = function(elem) {
     // The HTML5 spec lists many more types than `text` and `password` on

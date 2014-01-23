@@ -15,17 +15,25 @@ textarea {
 </head>
 <body>
 
-Input: <input type="text" id="input" autofocus><br>
+Input:
+<input type="text" class="in" autofocus><br>
+<textarea class="in"></textarea><br>
 <textarea id="log" readonly></textarea>
 
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 <script src="jquery.splendid.textchange.js"></script>
 <script>
-$("#input").on("textchange", function() {
-    var value = this.value;
-    $("#log").val(function(i, oldLog) {
-        return oldLog + "textchange, value: " + value + "\n";
-    });
+var log = $("#log")[0];
+
+$(".in").on("textchange", function() {
+    var input = this;
+
+    window.setTimeout(function () {
+        input.value = input.value;
+
+        log.value = log.value.concat(input.tagName, ": ", input.value, "\n");
+        log.scrollTop = log.scrollHeight;
+    }, 0);
 });
 </script>
 

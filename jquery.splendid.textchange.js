@@ -29,6 +29,7 @@ var hasInputCapabilities = function(elem) {
 var activeElement = null;
 var activeElementValue = null;
 var activeElementValueProp = null;
+var activeElementValueOverride = false; // track whether "activeElement.value" property was overridden in "startWatching" so that it can be restored in "stopWatching"
 
 /**
  * (For old IE.) Replacement getter/setter for the `value` property that
@@ -66,10 +67,14 @@ var handlePropertyChange = function(nativeEvent) {
 var startWatching = function(target) {
     activeElement = target;
     activeElementValue = target.value;
-    activeElementValueProp = Object.getOwnPropertyDescriptor(
-        target.constructor.prototype, "value");
 
-    Object.defineProperty(activeElement, "value", newValueProp);
+    if (target.constructor && target.constructor.prototype) { // target.constructor is null in quirks mode
+        activeElementValueProp = Object.getOwnPropertyDescriptor(
+            target.constructor.prototype, "value");
+        Object.defineProperty(activeElement, "value", newValueProp);
+        activeElementValueOverride = true;
+    }
+
     activeElement.attachEvent("onpropertychange", handlePropertyChange);
 };
 
@@ -80,8 +85,11 @@ var startWatching = function(target) {
 var stopWatching = function() {
     if (!activeElement) { return; }
 
-    // delete restores the original property definition
-    delete activeElement.value;
+    if (activeElementValueOverride) {
+        // delete restores the original property definition
+        delete activeElement.value;
+        activeElementValueOverride = false;
+    }
     activeElement.detachEvent("onpropertychange", handlePropertyChange);
 
     activeElement = null;

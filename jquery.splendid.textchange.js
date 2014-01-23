@@ -131,9 +131,7 @@ if (isInputSupported) {
             }
         })
 
-        .on("focusout", function() {
-            stopWatching();
-        })
+        .on("focusout", stopWatching)
 
         .on("selectionchange keyup keydown", function() {
             // On the selectionchange event, e.target is just document which

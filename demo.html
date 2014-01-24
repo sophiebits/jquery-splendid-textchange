@@ -16,8 +16,8 @@ textarea {
 <body>
 
 Input:
-<input type="text" class="in" autofocus><br>
-<textarea class="in"></textarea><br>
+<input type="text" class="in" id="single" autofocus><br>
+<textarea class="in" id="multi"></textarea><br>
 <textarea id="log" readonly></textarea>
 
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
@@ -26,14 +26,12 @@ Input:
 var log = $("#log")[0];
 
 $(".in").on("textchange", function() {
-    var input = this;
+    var input = this, value = input.value;
 
-    window.setTimeout(function () {
-        input.value = input.value;
+    input.value = value;
 
-        log.value = log.value.concat(input.tagName, ": ", input.value, "\n");
-        log.scrollTop = log.scrollHeight;
-    }, 0);
+    log.value = log.value.concat(input.tagName, ": ", value, "\n");
+    log.scrollTop = log.scrollHeight;
 });
 </script>
 

@@ -62,7 +62,6 @@
     function installValueExtensionsOn(target) {
         if (!target.valueExtensions) { // we haven't installed extensions yet (or "target" is not an input-capable element)
             if (hasInputCapabilities(target)) {
-                if (window.console) { window.console.log("Installing value extensions on " + target.id); }
                 target.valueExtensions = {
                     current: null // not setting "current" initially (to "target.value") allows drag & drop operations (from outside the control) to send change notifications
                 };
@@ -83,8 +82,9 @@
                     });
                 }
 
+                // subscribe once, never unsuncribe
                 $(target)
-                    .on("propertychange", queueActiveElementForNotification) // subscribe once, never unsuncribe
+                    .on("propertychange", queueActiveElementForNotification)
                     .on("dragend", function (e) {
                         window.setTimeout(function () {
                             queueActiveElementForNotification(e);
@@ -96,12 +96,10 @@
 
     /**
      * (For old IE.) For each queued element: if value of the element is
-     * different from current value, update the current value and trigger
+     * different from the current value, update the current value and trigger
      * "textchange" event on that element.
      */
     function processNotificationQueue() {
-        if (window.console) { window.console.log("Processing notifications: " + notificationQueue.length); }
-
         // remember the current notification queue (for processing)
         // + create a new queue so that if "textchange" event handlers
         // cause new notification requests to be queued, they will be
@@ -114,7 +112,6 @@
             target = q[i];
             targetValue = target.value;
             if (target.valueExtensions.current !== targetValue) {
-                if (window.console) { window.console.log("Before textchange for " + target.id + ": \"" + target.valueExtensions.current + "\", \"" + targetValue + "\""); }
                 target.valueExtensions.current = targetValue;
                 $(target).trigger("textchange");
             }
@@ -126,15 +123,10 @@
      * notification, queue it now.
      */
     queueActiveElementForNotification = function queueActiveElementForNotification(e) {
-        if (window.console) { window.console.log("Queue: " + e.type + ", " + e.target.id + ", \"" + e.target.value + "\""); }
-
         var target = e.target;
-        if (target !== activeElement) {
-            installValueExtensionsOn(target);
-        }
+        installValueExtensionsOn(target);
 
         if (target.valueExtensions && target.valueExtensions.current !== target.value) {
-            if (window.console) { window.console.log("Queue accepted"); }
             var i, l;
             for (i = 0, l = notificationQueue.length; i < l; i += 1) {
                 if (notificationQueue[i] === target) {
@@ -156,7 +148,6 @@
      * tracked element and adds event listeners to it.
      */
     function startWatching(target) {
-        if (window.console) { window.console.log("Start watching " + target.id); }
         activeElement = target;
         $(activeElement).on(watchedEvents, queueActiveElementForNotification);
     }
@@ -167,7 +158,6 @@
      */
     function stopWatching() {
         if (activeElement) {
-            if (window.console) { window.console.log("Stop watching " + activeElement.id); }
             $(activeElement).off(watchedEvents, queueActiveElementForNotification);
             activeElement = null;
         }

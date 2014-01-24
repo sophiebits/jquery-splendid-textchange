@@ -30,7 +30,6 @@
 
     var queueActiveElementForNotification = null;
     var activeElement = null;
-    var newValueProp = null;
     var notificationQueue = [];
     var watchedEvents = "keyup keydown";
         // 90% of the time, keydown and keyup aren't necessary. IE 8 fails
@@ -65,12 +64,24 @@
             if (hasInputCapabilities(target)) {
                 if (window.console) { window.console.log("Installing value extensions on " + target.id); }
                 target.valueExtensions = {
-                    current: null, // not setting "current" initially (to "target.value") allows drag & drop operations (from outside the control) to send change notifications
-                    descriptor: (target.constructor && target.constructor.prototype // target.constructor is undefined in quirks mode
-                        ? Object.getOwnPropertyDescriptor(target.constructor.prototype, "value")
-                        : null
-                    )
+                    current: null // not setting "current" initially (to "target.value") allows drag & drop operations (from outside the control) to send change notifications
                 };
+
+                // attempt to override "target.value" property
+                // so that it prevents "propertychange" event from firing
+                // (for consistency with "input" event behaviour)
+                if (target.constructor && target.constructor.prototype) { // target.constructor is undefined in quirks mode
+                    var descriptor = Object.getOwnPropertyDescriptor(target.constructor.prototype, "value");
+                    Object.defineProperty(target, "value", { // override once, never delete
+                        get: function () {
+                            return descriptor.get.call(this);
+                        },
+                        set: function (val) {
+                            target.valueExtensions.current = val;
+                            descriptor.set.call(this, val);
+                        }
+                    });
+                }
 
                 $(target).on("propertychange", queueActiveElementForNotification); // subscribe once, never unsuncribe
             }
@@ -135,45 +146,22 @@
     };
 
     /**
-     * (For old IE.) Starts tracking propertychange events on the passed-in element
-     * and override the value property so that we can distinguish user events from
-     * value changes in JS.
+     * (For old IE.) Marks the specified target element as currently
+     * tracked element and adds event listeners to it.
      */
     function startWatching(target) {
-        if (window.console) { window.console.log("Start watching " + activeElement.id); }
+        if (window.console) { window.console.log("Start watching " + target.id); }
         activeElement = target;
-
-        // attempt to override "activeElement.value" property
-        // so that it prevents "propertychange" event from firing
-        // (for consistency with "input" event behaviour)
-        if (activeElement.valueExtensions.descriptor) {
-            if (!newValueProp) { // on-demand creation of property object
-                newValueProp =  {
-                    get: function () {
-                        return activeElement.valueExtensions.descriptor.get.call(this);
-                    },
-                    set: function (val) {
-                        activeElement.valueExtensions.current = val;
-                        activeElement.valueExtensions.descriptor.set.call(this, val);
-                    }
-                };
-            }
-            Object.defineProperty(activeElement, "value", newValueProp);
-        }
-
         $(activeElement).on(watchedEvents, queueActiveElementForNotification);
     }
 
     /**
-     * (For old IE.) Removes the event listeners from the currently-tracked
-     * element, if any exists.
+     * (For old IE.) Removes the event listeners from the currently tracked
+     * element and sets currently tracked element to null.
      */
     function stopWatching() {
         if (activeElement) {
             if (window.console) { window.console.log("Stop watching " + activeElement.id); }
-            if (activeElement.valueExtensions.descriptor) {
-                delete activeElement.value; // delete restores the original "value" property definition
-            }
             $(activeElement).off(watchedEvents, queueActiveElementForNotification);
             activeElement = null;
         }
@@ -186,16 +174,15 @@
             stopWatching();
 
             // In IE 8, we can capture almost all .value changes by adding a
-            // propertychange handler and looking for events with propertyName
-            // equal to 'value'.
-            // In IE 9, propertychange fires for most input events but is buggy
+            // propertychange handler.
+            // In IE 9, propertychange/input fires for most input events but is buggy
             // and doesn't fire when text is deleted, but conveniently,
             // selectionchange appears to fire in all of the remaining cases so
             // we catch those and forward the event if the value has changed.
             // In either case, we don't want to call the event handler if the
             // value is changed from JS so we redefine a setter for `.value`
-            // that updates our activeElement.valueExtensions.current variable, allowing us to
-            // ignore those changes.
+            // that updates our activeElement.valueExtensions.current variable,
+            // allowing us to ignore those changes.
             installValueExtensionsOn(e.target);
             if (e.target.valueExtensions) {
                 startWatching(e.target);

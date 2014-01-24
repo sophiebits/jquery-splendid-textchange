@@ -28,7 +28,7 @@
 
     // ********* OLD IE (9 and older) *********
 
-    var queueActiveElementForNotification = null;
+    var queueEventTargetForNotification = null;
     var activeElement = null;
     var notificationQueue = [];
     var watchedEvents = "keyup keydown";
@@ -82,10 +82,10 @@
 
                 // subscribe once, never unsuncribe
                 $(target)
-                    .on("propertychange", queueActiveElementForNotification)
+                    .on("propertychange", queueEventTargetForNotification)
                     .on("dragend", function (e) {
                         window.setTimeout(function () {
-                            queueActiveElementForNotification(e);
+                            queueEventTargetForNotification(e);
                         }, 0);
                     });
             }
@@ -116,7 +116,7 @@
 
     // If target element of the specified event has not yet been
     // queued for notification, queue it now.
-    queueActiveElementForNotification = function queueActiveElementForNotification(e) {
+    queueEventTargetForNotification = function queueEventTargetForNotification(e) {
         var target = e.target;
         installValueExtensionsOn(target);
 
@@ -141,14 +141,14 @@
     // Mark the specified target element as "active" and add event listeners to it.
     function startWatching(target) {
         activeElement = target;
-        $(activeElement).on(watchedEvents, queueActiveElementForNotification);
+        $(activeElement).on(watchedEvents, queueEventTargetForNotification);
     }
 
 
     // Remove the event listeners from the "active" element and set "active" to null.
     function stopWatching() {
         if (activeElement) {
-            $(activeElement).off(watchedEvents, queueActiveElementForNotification);
+            $(activeElement).off(watchedEvents, queueEventTargetForNotification);
             activeElement = null;
         }
     }
@@ -178,7 +178,7 @@
 
         .on("focusout", stopWatching)
 
-        .on("input", queueActiveElementForNotification)
+        .on("input", queueEventTargetForNotification)
 
         .on("selectionchange", function onSplendidSelectionChange(e) {
             // IE sets "e.target" to "document" in "onselectionchange"
@@ -190,7 +190,7 @@
                     var p = r.parentElement();
                     if (p) {
                         e.target = p;
-                        queueActiveElementForNotification(e);
+                        queueEventTargetForNotification(e);
                     }
                 }
             }

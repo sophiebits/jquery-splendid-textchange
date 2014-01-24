@@ -83,7 +83,13 @@
                     });
                 }
 
-                $(target).on("propertychange", queueActiveElementForNotification); // subscribe once, never unsuncribe
+                $(target)
+                    .on("propertychange", queueActiveElementForNotification) // subscribe once, never unsuncribe
+                    .on("dragend", function (e) {
+                        window.setTimeout(function () {
+                            queueActiveElementForNotification(e);
+                        }, 0);
+                    });
             }
         }
     }

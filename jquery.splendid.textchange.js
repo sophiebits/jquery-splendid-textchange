@@ -169,7 +169,7 @@
     // value is changed from JS so we redefine a setter for `.value`
     // that allows us to ignore those changes (in "installValueExtensionsOn").
     $(document)
-        .on("focusin", function onSpendidFocusin(e) {
+        .on("focusin", function onSplendidFocusin(e) {
             // stopWatching() should be a noop here but we call it just in
             // case we missed a blur event somehow.
             stopWatching();

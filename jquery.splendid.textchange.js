@@ -41,10 +41,9 @@
         // Other input methods (e.g., paste) seem to fire selectionchange
         // normally.
 
-    /**
-     * (For old IE.) Return true if the specified element can generate
-     * change notifications (i.e. can be used by users to input values).
-     */
+
+    // Return true if the specified element can generate
+    // change notifications (i.e. can be used by users to input values).
     function hasInputCapabilities(elem) {
         // The HTML5 spec lists many more types than `text` and `password` on
         // which the input event is triggered but none of them exist in IE 8 or
@@ -56,9 +55,8 @@
         );
     }
 
-    /**
-     * (For old IE.)
-     */
+
+    // Update the specified target so that we can track its value changes.
     function installValueExtensionsOn(target) {
         if (!target.valueExtensions) { // we haven't installed extensions yet (or "target" is not an input-capable element)
             if (hasInputCapabilities(target)) {
@@ -94,11 +92,8 @@
         }
     }
 
-    /**
-     * (For old IE.) For each queued element: if value of the element is
-     * different from the current value, update the current value and trigger
-     * "textchange" event on that element.
-     */
+
+    // Fire "textchange" event for each queued element whose value changed.
     function processNotificationQueue() {
         // remember the current notification queue (for processing)
         // + create a new queue so that if "textchange" event handlers
@@ -118,10 +113,9 @@
         }
     }
 
-    /**
-     * (For old IE.) If activeElement has not yet been queued for
-     * notification, queue it now.
-     */
+
+    // If target element of the specified event has not yet been
+    // queued for notification, queue it now.
     queueActiveElementForNotification = function queueActiveElementForNotification(e) {
         var target = e.target;
         installValueExtensionsOn(target);
@@ -143,25 +137,22 @@
         }
     };
 
-    /**
-     * (For old IE.) Marks the specified target element as currently
-     * tracked element and adds event listeners to it.
-     */
+
+    // Mark the specified target element as "active" and add event listeners to it.
     function startWatching(target) {
         activeElement = target;
         $(activeElement).on(watchedEvents, queueActiveElementForNotification);
     }
 
-    /**
-     * (For old IE.) Removes the event listeners from the currently tracked
-     * element and sets currently tracked element to null.
-     */
+
+    // Remove the event listeners from the "active" element and set "active" to null.
     function stopWatching() {
         if (activeElement) {
             $(activeElement).off(watchedEvents, queueActiveElementForNotification);
             activeElement = null;
         }
     }
+
 
     $(document)
         .on("focusin", function (e) {

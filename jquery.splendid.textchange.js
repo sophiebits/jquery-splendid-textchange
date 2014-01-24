@@ -1,5 +1,5 @@
 /**
- * jQuery "splendid textchange" plugin, v1.2 alpha1
+ * jQuery "splendid textchange" plugin, v1.2 alpha2
  * http://benalpert.com/2013/06/18/a-near-perfect-oninput-shim-for-ie-8-and-9.html
  *
  * (c) 2013 Ben Alpert, released under the MIT license
@@ -55,39 +55,46 @@
 
 
     // Update the specified target so that we can track its value changes.
+    // Returns true if extensions were successfully installed, false otherwise.
     function installValueExtensionsOn(target) {
-        if (!target.valueExtensions) { // we haven't installed extensions yet (or "target" is not an input-capable element)
-            if (hasInputCapabilities(target)) {
-                target.valueExtensions = {
-                    current: null // not setting "current" initially (to "target.value") allows drag & drop operations (from outside the control) to send change notifications
-                };
-
-                // attempt to override "target.value" property
-                // so that it prevents "propertychange" event from firing
-                // (for consistency with "input" event behaviour)
-                if (target.constructor && target.constructor.prototype) { // target.constructor is undefined in quirks mode
-                    var descriptor = Object.getOwnPropertyDescriptor(target.constructor.prototype, "value");
-                    Object.defineProperty(target, "value", { // override once, never delete
-                        get: function () {
-                            return descriptor.get.call(this);
-                        },
-                        set: function (val) {
-                            target.valueExtensions.current = val;
-                            descriptor.set.call(this, val);
-                        }
-                    });
-                }
-
-                // subscribe once, never unsubcribe
-                $(target)
-                    .on("propertychange", queueEventTargetForNotification)
-                    .on("dragend", function onSplendidDragend(e) {
-                        window.setTimeout(function onSplendidDragendDelayed() {
-                            queueEventTargetForNotification(e);
-                        }, 0);
-                    });
-            }
+        if (target.valueExtensions) {
+            return true;
         }
+        if (!hasInputCapabilities(target)) {
+            return false;
+        }
+
+        // add extensions container
+        target.valueExtensions = {
+            current: null // not setting "current" initially (to "target.value") allows drag & drop operations (from outside the control) to send change notifications
+        };
+
+        // attempt to override "target.value" property
+        // so that it prevents "propertychange" event from firing
+        // (for consistency with "input" event behaviour)
+        if (target.constructor && target.constructor.prototype) { // target.constructor is undefined in quirks mode
+            var descriptor = Object.getOwnPropertyDescriptor(target.constructor.prototype, "value");
+            Object.defineProperty(target, "value", { // override once, never delete
+                get: function () {
+                    return descriptor.get.call(this);
+                },
+                set: function (val) {
+                    target.valueExtensions.current = val;
+                    descriptor.set.call(this, val);
+                }
+            });
+        }
+
+        // subscribe once, never unsubcribe
+        $(target)
+            .on("propertychange", queueEventTargetForNotification)
+            .on("dragend", function onSplendidDragend(e) {
+                window.setTimeout(function onSplendidDragendDelayed() {
+                    queueEventTargetForNotification(e);
+                }, 0);
+            });
+
+        return true;
     }
 
 
@@ -116,9 +123,7 @@
     // queued for notification, queue it now.
     queueEventTargetForNotification = function queueEventTargetForNotification(e) {
         var target = e.target;
-        installValueExtensionsOn(target);
-
-        if (target.valueExtensions && target.valueExtensions.current !== target.value) {
+        if (installValueExtensionsOn(target) && target.valueExtensions.current !== target.value) {
             var i, l;
             for (i = 0, l = notificationQueue.length; i < l; i += 1) {
                 if (notificationQueue[i] === target) {
@@ -169,8 +174,7 @@
             // case we missed a blur event somehow.
             stopWatching();
 
-            installValueExtensionsOn(e.target);
-            if (e.target.valueExtensions) {
+            if (installValueExtensionsOn(e.target)) {
                 startWatching(e.target);
             }
         })

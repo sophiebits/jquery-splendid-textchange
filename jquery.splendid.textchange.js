@@ -11,8 +11,8 @@
 (function initSplendidTextChange($) {
     "use strict";
 
-    // Determine if this is a modern browser (i.e. not IE 9 or older),
-    // in which case the "input" event is exactly what we want so simply
+    // Determine if this is a modern browser (i.e. not IE 9 or older);
+    // if it is, the "input" event is exactly what we want so simply
     // mirror it as "textchange" event
     var testNode = document.createElement("input");
     var isInputSupported = (testNode.oninput !== undefined &&
@@ -28,24 +28,19 @@
 
     // ********* OLD IE (9 and older) *********
 
+    var queueActiveElementForNotification = null;
     var activeElement = null;
-    var activeElementValue = null;
-    var activeElementValueProp = null;
-    var activeElementValueOverride = false; // track whether "activeElement.value" property was overridden in "startWatching" so that it can be restored in "stopWatching"
-
-    /**
-     * (For old IE.) Replacement getter/setter for the `value` property that
-     * gets set on the active element.
-     */
-    var newValueProp =  {
-        get: function () {
-            return activeElementValueProp.get.call(this);
-        },
-        set: function (val) {
-            activeElementValue = val;
-            activeElementValueProp.set.call(this, val);
-        }
-    };
+    var newValueProp = null;
+    var notificationQueue = [];
+    var watchedEvents = "keyup keydown";
+        // 90% of the time, keydown and keyup aren't necessary. IE 8 fails
+        // to fire propertychange on the first input event after setting
+        // `value` from a script and fires only keydown, keypress, keyup.
+        // Catching keyup usually gets it and catching keydown lets us fire
+        // an event for the first keystroke if user does a key repeat
+        // (it'll be a little delayed: right before the second keystroke).
+        // Other input methods (e.g., paste) seem to fire selectionchange
+        // normally.
 
     /**
      * (For old IE.) Return true if the specified element can generate
@@ -63,16 +58,81 @@
     }
 
     /**
-     * (For old IE.) If value of activeElement is different from current value
-     * (activeElementValue), update the current value and trigger "textchange"
-     * event on activeElement.
+     * (For old IE.)
      */
-    function updateValueAndTriggerTextChange() {
-        if (activeElement && activeElement.value !== activeElementValue) {
-            activeElementValue = activeElement.value;
-            $(activeElement).trigger("textchange");
+    function installValueExtensionsOn(target) {
+        if (!target.valueExtensions) { // we haven't installed extensions yet (or "target" is not an input-capable element)
+            if (hasInputCapabilities(target)) {
+                if (window.console) { window.console.log("Installing value extensions on " + target.id); }
+                target.valueExtensions = {
+                    current: null, // not setting "current" initially (to "target.value") allows drag & drop operations (from outside the control) to send change notifications
+                    descriptor: (target.constructor && target.constructor.prototype // target.constructor is undefined in quirks mode
+                        ? Object.getOwnPropertyDescriptor(target.constructor.prototype, "value")
+                        : null
+                    )
+                };
+
+                $(target).on("propertychange", queueActiveElementForNotification); // subscribe once, never unsuncribe
+            }
         }
     }
+
+    /**
+     * (For old IE.) For each queued element: if value of the element is
+     * different from current value, update the current value and trigger
+     * "textchange" event on that element.
+     */
+    function processNotificationQueue() {
+        if (window.console) { window.console.log("Processing notifications: " + notificationQueue.length); }
+
+        // remember the current notification queue (for processing)
+        // + create a new queue so that if "textchange" event handlers
+        // cause new notification requests to be queued, they will be
+        // added to the new queue and handled in the next tick
+        var q = notificationQueue;
+        notificationQueue = [];
+
+        var target, targetValue, i, l;
+        for (i = 0, l = q.length; i < l; i += 1) {
+            target = q[i];
+            targetValue = target.value;
+            if (target.valueExtensions.current !== targetValue) {
+                if (window.console) { window.console.log("Before textchange for " + target.id + ": \"" + target.valueExtensions.current + "\", \"" + targetValue + "\""); }
+                target.valueExtensions.current = targetValue;
+                $(target).trigger("textchange");
+            }
+        }
+    }
+
+    /**
+     * (For old IE.) If activeElement has not yet been queued for
+     * notification, queue it now.
+     */
+    queueActiveElementForNotification = function queueActiveElementForNotification(e) {
+        if (window.console) { window.console.log("Queue: " + e.type + ", " + e.target.id + ", \"" + e.target.value + "\""); }
+
+        var target = e.target;
+        if (target !== activeElement) {
+            installValueExtensionsOn(target);
+        }
+
+        if (target.valueExtensions && target.valueExtensions.current !== target.value) {
+            if (window.console) { window.console.log("Queue accepted"); }
+            var i, l;
+            for (i = 0, l = notificationQueue.length; i < l; i += 1) {
+                if (notificationQueue[i] === target) {
+                    break;
+                }
+            }
+            if (i >= l) { // "target" is not yet queued
+                notificationQueue.push(target);
+
+                if (l === 0) { // we just queued the first item, schedule processor in the next tick
+                    window.setTimeout(processNotificationQueue, 0);
+                }
+            }
+        }
+    };
 
     /**
      * (For old IE.) Starts tracking propertychange events on the passed-in element
@@ -80,16 +140,28 @@
      * value changes in JS.
      */
     function startWatching(target) {
+        if (window.console) { window.console.log("Start watching " + activeElement.id); }
         activeElement = target;
-        activeElementValue = target.value;
 
-        if (target.constructor && target.constructor.prototype) { // target.constructor is undefined in quirks mode
-            activeElementValueProp = Object.getOwnPropertyDescriptor(target.constructor.prototype, "value");
+        // attempt to override "activeElement.value" property
+        // so that it prevents "propertychange" event from firing
+        // (for consistency with "input" event behaviour)
+        if (activeElement.valueExtensions.descriptor) {
+            if (!newValueProp) { // on-demand creation of property object
+                newValueProp =  {
+                    get: function () {
+                        return activeElement.valueExtensions.descriptor.get.call(this);
+                    },
+                    set: function (val) {
+                        activeElement.valueExtensions.current = val;
+                        activeElement.valueExtensions.descriptor.set.call(this, val);
+                    }
+                };
+            }
             Object.defineProperty(activeElement, "value", newValueProp);
-            activeElementValueOverride = true;
         }
 
-        activeElement.attachEvent("onpropertychange", updateValueAndTriggerTextChange);
+        $(activeElement).on(watchedEvents, queueActiveElementForNotification);
     }
 
     /**
@@ -97,22 +169,22 @@
      * element, if any exists.
      */
     function stopWatching() {
-        if (!activeElement) { return; }
-
-        if (activeElementValueOverride) {
-            // delete restores the original property definition
-            delete activeElement.value;
-            activeElementValueOverride = false;
+        if (activeElement) {
+            if (window.console) { window.console.log("Stop watching " + activeElement.id); }
+            if (activeElement.valueExtensions.descriptor) {
+                delete activeElement.value; // delete restores the original "value" property definition
+            }
+            $(activeElement).off(watchedEvents, queueActiveElementForNotification);
+            activeElement = null;
         }
-        activeElement.detachEvent("onpropertychange", updateValueAndTriggerTextChange);
-
-        activeElement = null;
-        activeElementValue = null;
-        activeElementValueProp = null;
     }
 
     $(document)
         .on("focusin", function (e) {
+            // stopWatching() should be a noop here but we call it just in
+            // case we missed a blur event somehow.
+            stopWatching();
+
             // In IE 8, we can capture almost all .value changes by adding a
             // propertychange handler and looking for events with propertyName
             // equal to 'value'.
@@ -122,29 +194,32 @@
             // we catch those and forward the event if the value has changed.
             // In either case, we don't want to call the event handler if the
             // value is changed from JS so we redefine a setter for `.value`
-            // that updates our activeElementValue variable, allowing us to
+            // that updates our activeElement.valueExtensions.current variable, allowing us to
             // ignore those changes.
-            if (hasInputCapabilities(e.target)) {
-                // stopWatching() should be a noop here but we call it just in
-                // case we missed a blur event somehow.
-                stopWatching();
+            installValueExtensionsOn(e.target);
+            if (e.target.valueExtensions) {
                 startWatching(e.target);
             }
         })
 
         .on("focusout", stopWatching)
 
-        .on("selectionchange keyup keydown", updateValueAndTriggerTextChange);
-            // On the selectionchange event, e.target is just document which
-            // isn't helpful for us so just check activeElement instead.
-            //
-            // 90% of the time, keydown and keyup aren't necessary. IE 8 fails
-            // to fire propertychange on the first input event after setting
-            // `value` from a script and fires only keydown, keypress, keyup.
-            // Catching keyup usually gets it and catching keydown lets us fire
-            // an event for the first keystroke if user does a key repeat
-            // (it'll be a little delayed: right before the second keystroke).
-            // Other input methods (e.g., paste) seem to fire selectionchange
-            // normally.
+        .on("input", queueActiveElementForNotification)
+
+        .on("selectionchange", function onSplendidSelectionChange(e) {
+            // IE sets "e.target" to "document" in "onselectionchange"
+            // event (not very useful); use document.selection instead
+            // to determine actual target element
+            if (document.selection) {
+                var r = document.selection.createRange();
+                if (r) {
+                    var p = r.parentElement();
+                    if (p) {
+                        e.target = p;
+                        queueActiveElementForNotification(e);
+                    }
+                }
+            }
+        });
 
 }(jQuery));

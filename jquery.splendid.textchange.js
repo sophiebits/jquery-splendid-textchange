@@ -38,8 +38,6 @@
         // Catching keyup usually gets it and catching keydown lets us fire
         // an event for the first keystroke if user does a key repeat
         // (it'll be a little delayed: right before the second keystroke).
-        // Other input methods (e.g., paste) seem to fire selectionchange
-        // normally.
 
 
     // Return true if the specified element can generate
@@ -80,11 +78,11 @@
                     });
                 }
 
-                // subscribe once, never unsuncribe
+                // subscribe once, never unsubcribe
                 $(target)
                     .on("propertychange", queueEventTargetForNotification)
-                    .on("dragend", function (e) {
-                        window.setTimeout(function () {
+                    .on("dragend", function onSplendidDragend(e) {
+                        window.setTimeout(function onSplendidDragendDelayed() {
                             queueEventTargetForNotification(e);
                         }, 0);
                     });
@@ -154,22 +152,23 @@
     }
 
 
+    // In IE 8, we can capture almost all .value changes by adding a
+    // propertychange handler (in "installValueExtensionsOn").
+    //
+    // In IE 9, propertychange/input fires for most input events but is buggy
+    // and doesn't fire when text is deleted, but conveniently,
+    // "selectionchange" appears to fire in all of the remaining cases so
+    // we catch those.
+    //
+    // In either case, we don't want to call the event handler if the
+    // value is changed from JS so we redefine a setter for `.value`
+    // that allows us to ignore those changes (in "installValueExtensionsOn").
     $(document)
-        .on("focusin", function (e) {
+        .on("focusin", function onSpendidFocusin(e) {
             // stopWatching() should be a noop here but we call it just in
             // case we missed a blur event somehow.
             stopWatching();
 
-            // In IE 8, we can capture almost all .value changes by adding a
-            // propertychange handler.
-            // In IE 9, propertychange/input fires for most input events but is buggy
-            // and doesn't fire when text is deleted, but conveniently,
-            // selectionchange appears to fire in all of the remaining cases so
-            // we catch those and forward the event if the value has changed.
-            // In either case, we don't want to call the event handler if the
-            // value is changed from JS so we redefine a setter for `.value`
-            // that updates our activeElement.valueExtensions.current variable,
-            // allowing us to ignore those changes.
             installValueExtensionsOn(e.target);
             if (e.target.valueExtensions) {
                 startWatching(e.target);
